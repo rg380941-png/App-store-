@@ -1,14 +1,16 @@
 <!DOCTYPE html>
-<html lang="hi">
+<html lang="hi" dir="ltr">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>APK Royal Store</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(160deg, #05060f, #0b1233 60%, #05060f); color: #f5e9c8; min-height: 100vh; }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 18px 40px; border-bottom: 1px solid #d4af37; }
+  body { font-family: 'Segoe UI', 'Noto Nastaliq Urdu', sans-serif; background: linear-gradient(160deg, #05060f, #0b1233 60%, #05060f); color: #f5e9c8; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; padding: 18px 40px; border-bottom: 1px solid #d4af37; }
   header h1 { color: #d4af37; letter-spacing: 2px; text-shadow: 0 0 12px rgba(212,175,55,.5); }
+  .right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  select { background: #0a0f26; color: #f5e9c8; border: 1px solid #d4af37; border-radius: 8px; padding: 9px 12px; font-size: 15px; }
   button { background: linear-gradient(135deg, #f7d774, #b8860b); color: #111; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
   button:hover { filter: brightness(1.15); }
   main { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
@@ -22,48 +24,102 @@
   .meta { font-size: 12px; opacity: .7; margin-bottom: 12px; }
   .hidden { display: none; }
   #msg { color: #ff9c9c; margin-top: 8px; min-height: 20px; }
+  [dir="rtl"] body { line-height: 1.8; }
 </style>
 </head>
 <body>
 <header>
   <h1>👑 APK ROYAL STORE</h1>
-  <div id="userbox"></div>
+  <div class="right">
+    <select id="langSel" onchange="setLang(this.value)">
+      <option value="hi">हिंदी</option>
+      <option value="ur">اردو</option>
+      <option value="en">English</option>
+    </select>
+    <div id="userbox"></div>
+  </div>
 </header>
 
 <main>
   <section class="panel" id="authPanel">
-    <h2>लॉगिन / साइन-अप</h2>
-    <input id="username" placeholder="यूज़रनेम">
-    <input id="password" type="password" placeholder="पासवर्ड (कम से कम 6 अक्षर)">
-    <button onclick="auth('login')">लॉगिन</button>
-    <button onclick="auth('signup')">नया अकाउंट</button>
+    <h2 data-t="authTitle"></h2>
+    <input id="username" data-p="username">
+    <input id="password" type="password" data-p="password">
+    <button onclick="auth('login')" data-t="login"></button>
+    <button onclick="auth('signup')" data-t="signup"></button>
     <div id="msg"></div>
   </section>
 
   <section class="panel hidden" id="uploadPanel">
-    <h2>नया ऐप अपलोड करें</h2>
-    <input id="appName" placeholder="ऐप का नाम">
-    <textarea id="appDesc" rows="2" placeholder="छोटा विवरण"></textarea>
+    <h2 data-t="uploadTitle"></h2>
+    <input id="appName" data-p="appName">
+    <textarea id="appDesc" rows="2" data-p="appDesc"></textarea>
     <input id="apkFile" type="file" accept=".apk">
-    <button onclick="uploadApk()">अपलोड करें</button>
+    <button onclick="uploadApk()" data-t="upload"></button>
     <div id="upmsg"></div>
   </section>
 
   <section>
-    <input id="search" placeholder="🔍 ऐप खोजिए..." oninput="loadApps()">
+    <input id="search" data-p="search" oninput="loadApps()">
     <div class="grid" id="apps"></div>
   </section>
 </main>
 
 <script>
+const T = {
+  hi: {
+    authTitle: 'लॉगिन / साइन-अप', username: 'यूज़रनेम', password: 'पासवर्ड (कम से कम 6 अक्षर)',
+    login: 'लॉगिन', signup: 'नया अकाउंट', uploadTitle: 'नया ऐप अपलोड करें',
+    appName: 'ऐप का नाम', appDesc: 'छोटा विवरण', upload: 'अपलोड करें',
+    search: '🔍 ऐप खोजिए...', logout: 'लॉगआउट', pickFile: 'पहले APK फ़ाइल चुनिए',
+    uploading: 'अपलोड हो रहा है...', uploaded: '✅ अपलोड हो गया!', noApps: 'अभी कोई ऐप नहीं है।',
+    by: 'द्वारा', download: 'डाउनलोड'
+  },
+  ur: {
+    authTitle: 'لاگ اِن / سائن اَپ', username: 'یوزر نیم', password: 'پاس ورڈ (کم از کم 6 حروف)',
+    login: 'لاگ اِن', signup: 'نیا اکاؤنٹ', uploadTitle: 'نئی ایپ اپ لوڈ کریں',
+    appName: 'ایپ کا نام', appDesc: 'مختصر تفصیل', upload: 'اپ لوڈ کریں',
+    search: '🔍 ایپ تلاش کریں...', logout: 'لاگ آؤٹ', pickFile: 'پہلے APK فائل منتخب کریں',
+    uploading: 'اپ لوڈ ہو رہا ہے...', uploaded: '✅ اپ لوڈ ہو گیا!', noApps: 'ابھی کوئی ایپ نہیں ہے۔',
+    by: 'از', download: 'ڈاؤن لوڈ'
+  },
+  en: {
+    authTitle: 'Login / Sign up', username: 'Username', password: 'Password (at least 6 characters)',
+    login: 'Login', signup: 'New account', uploadTitle: 'Upload a new app',
+    appName: 'App name', appDesc: 'Short description', upload: 'Upload',
+    search: '🔍 Search apps...', logout: 'Logout', pickFile: 'Please choose an APK file first',
+    uploading: 'Uploading...', uploaded: '✅ Uploaded!', noApps: 'No apps yet.',
+    by: 'By', download: 'Download'
+  }
+};
+
+let lang = localStorage.getItem('lang') || 'hi';
 let token = localStorage.getItem('token');
 let user = localStorage.getItem('user');
+
+function t(k) { return T[lang][k]; }
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === 'ur' ? 'rtl' : 'ltr';
+  document.getElementById('langSel').value = lang;
+  document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+  document.querySelectorAll('[data-p]').forEach(el => el.placeholder = t(el.dataset.p));
+  refreshUI();
+  loadApps();
+}
+
+function setLang(l) {
+  lang = l;
+  localStorage.setItem('lang', l);
+  applyLang();
+}
 
 function refreshUI() {
   document.getElementById('authPanel').classList.toggle('hidden', !!token);
   document.getElementById('uploadPanel').classList.toggle('hidden', !token);
   document.getElementById('userbox').innerHTML = token
-    ? `👤 ${user} <button onclick="logout()">लॉगआउट</button>` : '';
+    ? `👤 ${esc(user)} <button onclick="logout()">${t('logout')}</button>` : '';
 }
 
 async function auth(kind) {
@@ -84,25 +140,28 @@ async function auth(kind) {
 }
 
 function logout() {
-  localStorage.clear(); token = user = null; refreshUI();
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  token = user = null;
+  refreshUI();
 }
 
 async function uploadApk() {
   const file = document.getElementById('apkFile').files[0];
   const out = document.getElementById('upmsg');
-  if (!file) { out.textContent = 'पहले APK फ़ाइल चुनिए'; return; }
+  if (!file) { out.textContent = t('pickFile'); return; }
   const fd = new FormData();
   fd.append('name', document.getElementById('appName').value);
   fd.append('description', document.getElementById('appDesc').value);
   fd.append('apk', file);
-  out.textContent = 'अपलोड हो रहा है...';
+  out.textContent = t('uploading');
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + token },
     body: fd
   });
   const data = await res.json();
-  out.textContent = res.ok ? '✅ अपलोड हो गया!' : data.error;
+  out.textContent = res.ok ? t('uploaded') : data.error;
   if (res.ok) loadApps();
 }
 
@@ -117,13 +176,12 @@ async function loadApps() {
     <div class="card">
       <h3>${esc(a.name)}</h3>
       <p>${esc(a.description)}</p>
-      <div class="meta">द्वारा: ${esc(a.uploader)} · ${(a.size / 1048576).toFixed(1)} MB · ⬇ ${a.downloads}</div>
-      <a href="/download/${a.id}"><button>डाउनलोड</button></a>
-    </div>`).join('') || '<p>अभी कोई ऐप नहीं है।</p>';
+      <div class="meta">${t('by')}: ${esc(a.uploader)} · ${(a.size / 1048576).toFixed(1)} MB · ⬇ ${a.downloads}</div>
+      <a href="/download/${a.id}"><button>${t('download')}</button></a>
+    </div>`).join('') || `<p>${t('noApps')}</p>`;
 }
 
-refreshUI();
-loadApps();
+applyLang();
 </script>
 </body>
 </html>
