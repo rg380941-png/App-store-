@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>APK Royal Store</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', sans-serif; background: linear-gradient(160deg, #05060f, #0b1233 60%, #05060f); color: #f5e9c8; min-height: 100vh; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 18px 40px; border-bottom: 1px solid #d4af37; }
+  header h1 { color: #d4af37; letter-spacing: 2px; text-shadow: 0 0 12px rgba(212,175,55,.5); }
+  button { background: linear-gradient(135deg, #f7d774, #b8860b); color: #111; border: none; padding: 10px 20px; border-radius: 8px; font-weight: 700; cursor: pointer; }
+  button:hover { filter: brightness(1.15); }
+  main { max-width: 1000px; margin: 30px auto; padding: 0 20px; }
+  .panel { background: rgba(255,255,255,.04); border: 1px solid #d4af37; border-radius: 14px; padding: 22px; margin-bottom: 26px; box-shadow: 0 0 25px rgba(212,175,55,.12); }
+  h2 { color: #d4af37; margin-bottom: 14px; }
+  input, textarea { width: 100%; padding: 11px; margin-bottom: 10px; background: #0a0f26; border: 1px solid #8a6d1d; border-radius: 8px; color: #f5e9c8; font-size: 15px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; }
+  .card { background: linear-gradient(180deg, #0d1640, #080c24); border: 1px solid #d4af37; border-radius: 12px; padding: 18px; }
+  .card h3 { color: #f7d774; margin-bottom: 6px; }
+  .card p { font-size: 14px; opacity: .85; margin-bottom: 10px; }
+  .meta { font-size: 12px; opacity: .7; margin-bottom: 12px; }
+  .hidden { display: none; }
+  #msg { color: #ff9c9c; margin-top: 8px; min-height: 20px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>👑 APK ROYAL STORE</h1>
+  <div id="userbox"></div>
+</header>
+
+<main>
+  <section class="panel" id="authPanel">
+    <h2>लॉगिन / साइन-अप</h2>
+    <input id="username" placeholder="यूज़रनेम">
+    <input id="password" type="password" placeholder="पासवर्ड (कम से कम 6 अक्षर)">
+    <button onclick="auth('login')">लॉगिन</button>
+    <button onclick="auth('signup')">नया अकाउंट</button>
+    <div id="msg"></div>
+  </section>
+
+  <section class="panel hidden" id="uploadPanel">
+    <h2>नया ऐप अपलोड करें</h2>
+    <input id="appName" placeholder="ऐप का नाम">
+    <textarea id="appDesc" rows="2" placeholder="छोटा विवरण"></textarea>
+    <input id="apkFile" type="file" accept=".apk">
+    <button onclick="uploadApk()">अपलोड करें</button>
+    <div id="upmsg"></div>
+  </section>
+
+  <section>
+    <input id="search" placeholder="🔍 ऐप खोजिए..." oninput="loadApps()">
+    <div class="grid" id="apps"></div>
+  </section>
+</main>
+
+<script>
+let token = localStorage.getItem('token');
+let user = localStorage.getItem('user');
+
+function refreshUI() {
+  document.getElementById('authPanel').classList.toggle('hidden', !!token);
+  document.getElementById('uploadPanel').classList.toggle('hidden', !token);
+  document.getElementById('userbox').innerHTML = token
+    ? `👤 ${user} <button onclick="logout()">लॉगआउट</button>` : '';
+}
+
+async function auth(kind) {
+  const res = await fetch('/api/' + kind, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      username: document.getElementById('username').value.trim(),
+      password: document.getElementById('password').value
+    })
+  });
+  const data = await res.json();
+  if (!res.ok) { document.getElementById('msg').textContent = data.error; return; }
+  token = data.token; user = data.username;
+  localStorage.setItem('token', token);
+  localStorage.setItem('user', user);
+  refreshUI();
+}
+
+function logout() {
+  localStorage.clear(); token = user = null; refreshUI();
+}
+
+async function uploadApk() {
+  const file = document.getElementById('apkFile').files[0];
+  const out = document.getElementById('upmsg');
+  if (!file) { out.textContent = 'पहले APK फ़ाइल चुनिए'; return; }
+  const fd = new FormData();
+  fd.append('name', document.getElementById('appName').value);
+  fd.append('description', document.getElementById('appDesc').value);
+  fd.append('apk', file);
+  out.textContent = 'अपलोड हो रहा है...';
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: fd
+  });
+  const data = await res.json();
+  out.textContent = res.ok ? '✅ अपलोड हो गया!' : data.error;
+  if (res.ok) loadApps();
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function loadApps() {
+  const q = encodeURIComponent(document.getElementById('search').value);
+  const list = await (await fetch('/api/apps?q=' + q)).json();
+  document.getElementById('apps').innerHTML = list.map(a => `
+    <div class="card">
+      <h3>${esc(a.name)}</h3>
+      <p>${esc(a.description)}</p>
+      <div class="meta">द्वारा: ${esc(a.uploader)} · ${(a.size / 1048576).toFixed(1)} MB · ⬇ ${a.downloads}</div>
+      <a href="/download/${a.id}"><button>डाउनलोड</button></a>
+    </div>`).join('') || '<p>अभी कोई ऐप नहीं है।</p>';
+}
+
+refreshUI();
+loadApps();
+</script>
+</body>
+</html>
